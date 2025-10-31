@@ -225,10 +225,61 @@
                 inset 0 0 20px rgba(255, 0, 255, 0.5);
         }
 
+        /* Botón de iniciar juego */
+        .start-btn {
+            display: none;
+            margin: 20px auto;
+            padding: 18px 50px;
+            border: 2px solid #ffff00;
+            background: rgba(255, 255, 0, 0.3);
+            border-radius: 25px;
+            color: #ffff00;
+            font-size: 1.5em;
+            font-weight: bold;
+            cursor: pointer;
+            user-select: none;
+            touch-action: manipulation;
+            box-shadow: 
+                0 0 20px #ffff00,
+                inset 0 0 20px rgba(255, 255, 0, 0.3);
+            transition: all 0.2s;
+            text-shadow: 0 0 10px #ffff00;
+        }
+
+        .start-btn:active {
+            transform: scale(0.95);
+            background: rgba(255, 255, 0, 0.5);
+            box-shadow: 
+                0 0 30px #ffff00,
+                inset 0 0 25px rgba(255, 255, 0, 0.5);
+        }
+
+        /* Overlay para pantalla de inicio */
+        .start-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            border-radius: 20px;
+            backdrop-filter: blur(5px);
+        }
+
+        .start-screen.hidden {
+            display: none;
+        }
+
         /* Mostrar controles solo en móvil */
         @media (max-width: 768px) {
             .controls {
                 display: flex;
+                margin-top: 15px;
             }
             
             #gameCanvas {
@@ -243,6 +294,23 @@
 
             .restart-btn {
                 display: inline-block;
+            }
+
+            .start-btn {
+                display: block;
+            }
+
+            .container {
+                position: relative;
+            }
+
+            .instructions {
+                margin-top: 15px;
+                margin-bottom: 10px;
+            }
+
+            .start-screen {
+                display: flex;
             }
         }
     </style>
@@ -261,9 +329,6 @@
         <canvas id="gameCanvas" width="400" height="400"></canvas>
         <div id="gameOver" class="game-over">¡Game Over! <span class="desktop-text">Presiona ESPACIO para reiniciar</span><span class="mobile-text">Toca el botón para reiniciar</span></div>
         <button id="restartBtn" class="restart-btn">🔄 Reiniciar Juego</button>
-        <div class="instructions">
-            Usa las flechas del teclado o los botones para mover la serpiente
-        </div>
         <!-- Controles táctiles -->
         <div class="controls">
             <div class="controls-row">
@@ -275,6 +340,14 @@
                 <button class="control-btn" id="btnRight">→</button>
             </div>
         </div>
+        <div class="instructions">
+            Usa las flechas del teclado o los botones para mover la serpiente
+        </div>
+        <!-- Pantalla de inicio -->
+        <div id="startScreen" class="start-screen">
+            <h2 style="color: #ffff00; margin-bottom: 30px; text-shadow: 0 0 15px #ffff00;">¡Bienvenido!</h2>
+            <button id="startBtn" class="start-btn">▶ Iniciar Juego</button>
+        </div>
     </div>
 
     <script>
@@ -285,6 +358,8 @@
         const levelElement = document.getElementById('level');
         const gameOverElement = document.getElementById('gameOver');
         const restartBtn = document.getElementById('restartBtn');
+        const startScreen = document.getElementById('startScreen');
+        const startBtn = document.getElementById('startBtn');
 
         // Configuración del juego
         const gridSize = 20;
@@ -299,8 +374,9 @@
         let dy = 0;
         let score = 0;
         let level = 1;
-        let gameRunning = true;
-        let gameSpeed = 150;
+        let gameRunning = false; // No iniciar automáticamente
+        // Velocidad más lenta en móvil
+        let gameSpeed = window.innerWidth <= 768 ? 200 : 150;
 
         // Sistema de audio
         let audioContext;
@@ -677,7 +753,8 @@
                     level = newLevel;
                     levelElement.textContent = level;
                     // Aumentar velocidad (reducir intervalo)
-                    gameSpeed = Math.max(50, 150 - (level - 1) * 10);
+                    const baseSpeed = window.innerWidth <= 768 ? 200 : 150;
+                    gameSpeed = Math.max(60, baseSpeed - (level - 1) * 10);
                     // Reiniciar el intervalo con nueva velocidad
                     clearInterval(gameInterval);
                     gameInterval = setInterval(moveSnake, gameSpeed);
@@ -703,6 +780,39 @@
             playGameOverSound(); // Reproducir sonido al perder
         }
 
+        // Iniciar el juego
+        function startGame() {
+            // Ocultar pantalla de inicio
+            if (startScreen) {
+                startScreen.classList.add('hidden');
+            }
+            
+            snake = [{ x: 10, y: 10 }];
+            dx = 1;  // Empezar moviéndose hacia la derecha
+            dy = 0;
+            score = 0;
+            level = 1;
+            // Velocidad más lenta en móvil
+            gameSpeed = window.innerWidth <= 768 ? 200 : 150;
+            scoreElement.textContent = score;
+            levelElement.textContent = level;
+            gameRunning = true;
+            gameOverElement.style.display = 'none';
+            restartBtn.style.display = 'none';
+            generateFood();
+            drawGame();
+            
+            // Iniciar intervalo
+            if (gameInterval) {
+                clearInterval(gameInterval);
+            }
+            gameInterval = setInterval(moveSnake, gameSpeed);
+            
+            // Iniciar música de fondo
+            initAudio();
+            playBackgroundMusic();
+        }
+
         // Reiniciar el juego
         function resetGame() {
             snake = [{ x: 10, y: 10 }];
@@ -710,7 +820,8 @@
             dy = 0;
             score = 0;
             level = 1;
-            gameSpeed = 150;
+            // Velocidad más lenta en móvil
+            gameSpeed = window.innerWidth <= 768 ? 200 : 150;
             scoreElement.textContent = score;
             levelElement.textContent = level;
             gameRunning = true;
@@ -812,27 +923,34 @@
             resetGame();
         });
 
-        // Inicializar el juego
+        // Botón de inicio
+        startBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            startGame();
+        });
+        startBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            startGame();
+        });
+
+        // En desktop, iniciar automáticamente al presionar cualquier tecla
+        if (window.innerWidth > 768) {
+            document.addEventListener('keydown', () => {
+                if (!gameRunning) {
+                    startGame();
+                }
+            }, { once: true });
+        } else {
+            // En móvil, el juego inicia con el botón
+            gameRunning = false;
+        }
+
+        // Inicializar el juego (solo dibujar, no mover)
         generateFood();
         drawGame();
         
-        // Inicializar audio (requiere interacción del usuario)
-        document.addEventListener('click', () => {
-            if (!audioContext) {
-                initAudio();
-                playBackgroundMusic();
-            }
-        }, { once: true });
-        
-        document.addEventListener('keydown', () => {
-            if (!audioContext) {
-                initAudio();
-                playBackgroundMusic();
-            }
-        }, { once: true });
-        
-        // Actualizar el juego
-        let gameInterval = setInterval(moveSnake, gameSpeed);
+        // Variable para el intervalo del juego
+        let gameInterval = null;
     </script>
 </body>
 </html>
