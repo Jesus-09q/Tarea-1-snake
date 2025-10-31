@@ -1,0 +1,771 @@
+ <!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🐍 Juego de la Serpiente</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #000;
+            color: white;
+            overflow: hidden;
+        }
+
+        /* Animación de fondo neón */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(255, 0, 255, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(0, 255, 255, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 40% 20%, rgba(255, 255, 0, 0.2) 0%, transparent 50%);
+            animation: neonPulse 3s ease-in-out infinite alternate;
+            z-index: -1;
+        }
+
+        @keyframes neonPulse {
+            0% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .container {
+            text-align: center;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 
+                0 0 20px #ff00ff,
+                0 0 40px #00ffff,
+                0 0 60px #ffff00;
+            border: 2px solid #ff00ff;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+            font-size: 2.5em;
+            text-shadow: 
+                0 0 10px #ffff00,
+                0 0 20px #ffff00,
+                0 0 30px #ff00ff;
+            color: #ffff00;
+            animation: titleGlow 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes titleGlow {
+            0% { 
+                text-shadow: 
+                    0 0 10px #ffff00,
+                    0 0 20px #ffff00,
+                    0 0 30px #ff00ff;
+            }
+            100% { 
+                text-shadow: 
+                    0 0 20px #ffff00,
+                    0 0 30px #ffff00,
+                    0 0 40px #ff00ff,
+                    0 0 50px #00ffff;
+            }
+        }
+
+        .info-container {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+
+        .score-container, .level-container {
+            text-shadow: 0 0 10px #00ffff;
+            color: #00ffff;
+        }
+
+        #gameCanvas {
+            border: 3px solid #00ffff;
+            border-radius: 10px;
+            background-color: #000;
+            box-shadow: 
+                0 0 20px #00ffff,
+                inset 0 0 20px rgba(255, 0, 255, 0.3);
+            display: block;
+        }
+
+        .game-over {
+            margin-top: 20px;
+            font-size: 1.8em;
+            color: #ff00ff;
+            font-weight: bold;
+            display: none;
+            text-shadow: 
+                0 0 10px #ff00ff,
+                0 0 20px #ff00ff;
+            animation: gameOverGlow 1s ease-in-out infinite alternate;
+        }
+
+        @keyframes gameOverGlow {
+            0% { 
+                text-shadow: 
+                    0 0 10px #ff00ff,
+                    0 0 20px #ff00ff;
+            }
+            100% { 
+                text-shadow: 
+                    0 0 20px #ff00ff,
+                    0 0 30px #ff00ff,
+                    0 0 40px #ff0000;
+            }
+        }
+
+        .instructions {
+            margin-top: 20px;
+            font-size: 1em;
+            color: #00ffff;
+            text-shadow: 0 0 5px #00ffff;
+        }
+
+        /* Controles táctiles */
+        .controls {
+            display: none;
+            margin-top: 20px;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .controls-row {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .control-btn {
+            width: 60px;
+            height: 60px;
+            border: 2px solid #00ffff;
+            background: rgba(0, 255, 255, 0.2);
+            border-radius: 15px;
+            color: #00ffff;
+            font-size: 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            user-select: none;
+            touch-action: manipulation;
+            box-shadow: 
+                0 0 10px #00ffff,
+                inset 0 0 10px rgba(0, 255, 255, 0.3);
+            transition: all 0.1s;
+            text-shadow: 0 0 5px #00ffff;
+        }
+
+        .control-btn:active {
+            transform: scale(0.95);
+            background: rgba(0, 255, 255, 0.4);
+            box-shadow: 
+                0 0 20px #00ffff,
+                inset 0 0 15px rgba(0, 255, 255, 0.5);
+        }
+
+        /* Mostrar controles solo en móvil */
+        @media (max-width: 768px) {
+            .controls {
+                display: flex;
+            }
+            
+            #gameCanvas {
+                width: 100%;
+                max-width: 400px;
+                height: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🐍 Culebrita (Snake)</h1>
+        <div class="info-container">
+            <div class="score-container">
+                Puntuación: <span id="score">0</span>
+            </div>
+            <div class="level-container">
+                Nivel: <span id="level">1</span>
+            </div>
+        </div>
+        <canvas id="gameCanvas" width="400" height="400"></canvas>
+        <div id="gameOver" class="game-over">¡Game Over! Presiona ESPACIO para reiniciar</div>
+        <div class="instructions">
+            Usa las flechas del teclado o los botones para mover la serpiente
+        </div>
+        <!-- Controles táctiles -->
+        <div class="controls">
+            <div class="controls-row">
+                <button class="control-btn" id="btnUp">↑</button>
+            </div>
+            <div class="controls-row">
+                <button class="control-btn" id="btnLeft">←</button>
+                <button class="control-btn" id="btnDown">↓</button>
+                <button class="control-btn" id="btnRight">→</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuración del canvas
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreElement = document.getElementById('score');
+        const levelElement = document.getElementById('level');
+        const gameOverElement = document.getElementById('gameOver');
+
+        // Configuración del juego
+        const gridSize = 20;
+        const tileCount = canvas.width / gridSize;
+
+        // Estado del juego
+        let snake = [
+            { x: 10, y: 10 }
+        ];
+        let food = {};
+        let dx = 1;  // Empezar moviéndose hacia la derecha
+        let dy = 0;
+        let score = 0;
+        let level = 1;
+        let gameRunning = true;
+        let gameSpeed = 150;
+
+        // Sistema de audio
+        let audioContext;
+        let backgroundMusicInterval;
+        let musicPlaying = false;
+
+        // Inicializar audio
+        function initAudio() {
+            try {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            } catch (e) {
+                console.log('Audio no disponible');
+            }
+        }
+
+        // Reproducir música de fondo (loop continuo)
+        function playBackgroundMusic() {
+            if (!audioContext || musicPlaying) return;
+            
+            musicPlaying = true;
+            let noteIndex = 0;
+            const melody = [
+                { freq: 262, time: 0.3 },   // Do
+                { freq: 294, time: 0.3 },   // Re
+                { freq: 330, time: 0.3 },   // Mi
+                { freq: 349, time: 0.3 },   // Fa
+                { freq: 392, time: 0.4 },   // Sol
+                { freq: 349, time: 0.3 },   // Fa
+                { freq: 330, time: 0.3 },   // Mi
+                { freq: 294, time: 0.4 }    // Re
+            ];
+            
+            function playNextNote() {
+                if (!musicPlaying || !gameRunning) return;
+                
+                try {
+                    const note = melody[noteIndex];
+                    const oscillator = audioContext.createOscillator();
+                    const gainNode = audioContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioContext.destination);
+                    
+                    oscillator.type = 'sine';
+                    oscillator.frequency.value = note.freq;
+                    
+                    gainNode.gain.setValueAtTime(0.05, audioContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + note.time * 0.9);
+                    
+                    oscillator.start(audioContext.currentTime);
+                    oscillator.stop(audioContext.currentTime + note.time);
+                    
+                    noteIndex = (noteIndex + 1) % melody.length;
+                    
+                    backgroundMusicInterval = setTimeout(playNextNote, note.time * 1000);
+                } catch (e) {
+                    console.log('Error al reproducir música');
+                }
+            }
+            
+            playNextNote();
+        }
+
+        // Detener música de fondo
+        function stopBackgroundMusic() {
+            musicPlaying = false;
+            if (backgroundMusicInterval) {
+                clearTimeout(backgroundMusicInterval);
+                backgroundMusicInterval = null;
+            }
+        }
+
+        // Sonido cuando come
+        function playEatSound() {
+            if (!audioContext) return;
+            
+            try {
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.setValueAtTime(330, audioContext.currentTime);
+                oscillator.frequency.setValueAtTime(440, audioContext.currentTime + 0.1);
+                oscillator.frequency.setValueAtTime(550, audioContext.currentTime + 0.2);
+                
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+                
+                oscillator.type = 'sine';
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.3);
+            } catch (e) {}
+        }
+
+        // Sonido cuando pierde
+        function playGameOverSound() {
+            if (!audioContext) return;
+            
+            try {
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.setValueAtTime(220, audioContext.currentTime);
+                oscillator.frequency.exponentialRampToValueAtTime(110, audioContext.currentTime + 0.5);
+                
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+                
+                oscillator.type = 'sawtooth';
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.5);
+            } catch (e) {}
+        }
+
+        // Función para cambiar dirección (usada por teclado y botones)
+        function changeDirection(newDx, newDy) {
+            if (!gameRunning) return;
+            
+            // Prevenir movimiento inverso
+            if ((newDx !== 0 && dx !== -newDx) || (newDy !== 0 && dy !== -newDy)) {
+                dx = newDx;
+                dy = newDy;
+            }
+        }
+
+        // Generar comida aleatoria
+        function generateFood() {
+            food = {
+                x: Math.floor(Math.random() * tileCount),
+                y: Math.floor(Math.random() * tileCount)
+            };
+            // Asegurarse de que la comida no aparezca sobre la serpiente
+            for (let segment of snake) {
+                if (segment.x === food.x && segment.y === food.y) {
+                    generateFood();
+                    return;
+                }
+            }
+        }
+
+        // Dibujar manzana realista
+        function drawApple(x, y) {
+            const centerX = x * gridSize + gridSize / 2;
+            const centerY = y * gridSize + gridSize / 2;
+            const radius = gridSize / 2 - 2;
+
+            // Cuerpo de la manzana (rojo con degradado)
+            const gradient = ctx.createRadialGradient(
+                centerX - 3, centerY - 3, 0,
+                centerX, centerY, radius
+            );
+            gradient.addColorStop(0, '#ff4444');
+            gradient.addColorStop(0.7, '#cc0000');
+            gradient.addColorStop(1, '#990000');
+
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+            ctx.fillStyle = gradient;
+            ctx.fill();
+            ctx.strokeStyle = '#880000';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            // Tallo
+            ctx.fillStyle = '#8B4513';
+            ctx.fillRect(centerX - 1, centerY - radius - 2, 2, 4);
+
+            // Hoja
+            ctx.fillStyle = '#00cc00';
+            ctx.beginPath();
+            ctx.ellipse(centerX + 2, centerY - radius - 1, 3, 5, -0.5, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Brillo
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+            ctx.beginPath();
+            ctx.arc(centerX - 3, centerY - 3, radius * 0.3, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Dibujar segmento de serpiente realista
+        function drawSnakeSegment(x, y, isHead, index, totalSegments) {
+            const centerX = x * gridSize + gridSize / 2;
+            const centerY = y * gridSize + gridSize / 2;
+            const radius = gridSize / 2 - 1;
+
+            if (isHead) {
+                // Cabeza de la serpiente
+                const gradient = ctx.createRadialGradient(
+                    centerX, centerY, 0,
+                    centerX, centerY, radius
+                );
+                gradient.addColorStop(0, '#00ff00');
+                gradient.addColorStop(1, '#008800');
+
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+                ctx.fillStyle = gradient;
+                ctx.fill();
+                ctx.strokeStyle = '#006600';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // Ojos según dirección
+                ctx.fillStyle = '#ffffff';
+                if (dx === 1) { // Derecha
+                    ctx.beginPath();
+                    ctx.arc(centerX + 3, centerY - 4, 2, 0, Math.PI * 2);
+                    ctx.arc(centerX + 3, centerY + 4, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = '#000000';
+                    ctx.beginPath();
+                    ctx.arc(centerX + 4, centerY - 4, 1, 0, Math.PI * 2);
+                    ctx.arc(centerX + 4, centerY + 4, 1, 0, Math.PI * 2);
+                    ctx.fill();
+                } else if (dx === -1) { // Izquierda
+                    ctx.beginPath();
+                    ctx.arc(centerX - 3, centerY - 4, 2, 0, Math.PI * 2);
+                    ctx.arc(centerX - 3, centerY + 4, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = '#000000';
+                    ctx.beginPath();
+                    ctx.arc(centerX - 4, centerY - 4, 1, 0, Math.PI * 2);
+                    ctx.arc(centerX - 4, centerY + 4, 1, 0, Math.PI * 2);
+                    ctx.fill();
+                } else if (dy === -1) { // Arriba
+                    ctx.beginPath();
+                    ctx.arc(centerX - 4, centerY - 3, 2, 0, Math.PI * 2);
+                    ctx.arc(centerX + 4, centerY - 3, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = '#000000';
+                    ctx.beginPath();
+                    ctx.arc(centerX - 4, centerY - 4, 1, 0, Math.PI * 2);
+                    ctx.arc(centerX + 4, centerY - 4, 1, 0, Math.PI * 2);
+                    ctx.fill();
+                } else if (dy === 1) { // Abajo
+                    ctx.beginPath();
+                    ctx.arc(centerX - 4, centerY + 3, 2, 0, Math.PI * 2);
+                    ctx.arc(centerX + 4, centerY + 3, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = '#000000';
+                    ctx.beginPath();
+                    ctx.arc(centerX - 4, centerY + 4, 1, 0, Math.PI * 2);
+                    ctx.arc(centerX + 4, centerY + 4, 1, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                // Lengua (si está mirando a algún lado)
+                if (dx !== 0 || dy !== 0) {
+                    ctx.strokeStyle = '#ff0000';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    if (dx === 1) {
+                        ctx.moveTo(centerX + radius, centerY);
+                        ctx.lineTo(centerX + radius + 4, centerY);
+                    } else if (dx === -1) {
+                        ctx.moveTo(centerX - radius, centerY);
+                        ctx.lineTo(centerX - radius - 4, centerY);
+                    } else if (dy === -1) {
+                        ctx.moveTo(centerX, centerY - radius);
+                        ctx.lineTo(centerX, centerY - radius - 4);
+                    } else if (dy === 1) {
+                        ctx.moveTo(centerX, centerY + radius);
+                        ctx.lineTo(centerX, centerY + radius + 4);
+                    }
+                    ctx.stroke();
+                }
+            } else {
+                // Cuerpo de la serpiente con patrones
+                const gradient = ctx.createRadialGradient(
+                    centerX, centerY, 0,
+                    centerX, centerY, radius
+                );
+                // Patrón alternado
+                if (index % 2 === 0) {
+                    gradient.addColorStop(0, '#00cc00');
+                    gradient.addColorStop(1, '#006600');
+                } else {
+                    gradient.addColorStop(0, '#00ff00');
+                    gradient.addColorStop(1, '#008800');
+                }
+
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, radius - 1, 0, Math.PI * 2);
+                ctx.fillStyle = gradient;
+                ctx.fill();
+                ctx.strokeStyle = '#004400';
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+
+                // Escamas pequeñas
+                ctx.fillStyle = 'rgba(0, 100, 0, 0.3)';
+                ctx.beginPath();
+                ctx.arc(centerX - 2, centerY - 2, 1.5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        // Dibujar en el canvas
+        function drawGame() {
+            // Limpiar el canvas
+            ctx.fillStyle = '#0a0a1a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Dibujar cuadrícula sutil
+            ctx.strokeStyle = 'rgba(0, 255, 255, 0.1)';
+            ctx.lineWidth = 1;
+            for (let i = 0; i <= tileCount; i++) {
+                ctx.beginPath();
+                ctx.moveTo(i * gridSize, 0);
+                ctx.lineTo(i * gridSize, canvas.height);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(0, i * gridSize);
+                ctx.lineTo(canvas.width, i * gridSize);
+                ctx.stroke();
+            }
+
+            // Dibujar manzana
+            drawApple(food.x, food.y);
+
+            // Dibujar serpiente
+            for (let i = snake.length - 1; i >= 0; i--) {
+                const isHead = (i === 0);
+                drawSnakeSegment(snake[i].x, snake[i].y, isHead, i, snake.length);
+            }
+        }
+
+        // Mover la serpiente
+        function moveSnake() {
+            if (!gameRunning) return;
+
+            // Si no hay dirección, no mover
+            if (dx === 0 && dy === 0) {
+                drawGame();
+                return;
+            }
+
+            const head = {
+                x: snake[0].x + dx,
+                y: snake[0].y + dy
+            };
+
+            // Verificar colisión con las paredes
+            if (head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount) {
+                endGame();
+                return;
+            }
+
+            // Verificar colisión consigo misma (excluyendo la cabeza actual)
+            for (let i = 0; i < snake.length; i++) {
+                if (head.x === snake[i].x && head.y === snake[i].y) {
+                    endGame();
+                    return;
+                }
+            }
+
+            snake.unshift(head);
+
+            // Verificar si come la comida
+            if (head.x === food.x && head.y === food.y) {
+                playEatSound(); // Reproducir sonido al comer
+                score += 10 * level; // Más puntos según el nivel
+                scoreElement.textContent = score;
+                
+                // Subir de nivel cada 50 puntos
+                const newLevel = Math.min(10, Math.floor(score / 50) + 1);
+                if (newLevel > level) {
+                    level = newLevel;
+                    levelElement.textContent = level;
+                    // Aumentar velocidad (reducir intervalo)
+                    gameSpeed = Math.max(50, 150 - (level - 1) * 10);
+                    // Reiniciar el intervalo con nueva velocidad
+                    clearInterval(gameInterval);
+                    gameInterval = setInterval(moveSnake, gameSpeed);
+                }
+                
+                generateFood();
+            } else {
+                snake.pop();
+            }
+
+            drawGame();
+        }
+
+        // Terminar el juego
+        function endGame() {
+            gameRunning = false;
+            gameOverElement.style.display = 'block';
+            stopBackgroundMusic();
+            playGameOverSound(); // Reproducir sonido al perder
+        }
+
+        // Reiniciar el juego
+        function resetGame() {
+            snake = [{ x: 10, y: 10 }];
+            dx = 1;  // Empezar moviéndose hacia la derecha
+            dy = 0;
+            score = 0;
+            level = 1;
+            gameSpeed = 150;
+            scoreElement.textContent = score;
+            levelElement.textContent = level;
+            gameRunning = true;
+            gameOverElement.style.display = 'none';
+            generateFood();
+            drawGame();
+            
+            // Reiniciar intervalo
+            clearInterval(gameInterval);
+            gameInterval = setInterval(moveSnake, gameSpeed);
+            
+            // Iniciar música de fondo
+            playBackgroundMusic();
+        }
+
+        // Controles del teclado
+        document.addEventListener('keydown', (e) => {
+            // Prevenir comportamientos por defecto
+            if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || 
+                e.key === 'ArrowLeft' || e.key === 'ArrowRight' || 
+                e.key === ' ') {
+                e.preventDefault();
+            }
+
+            if (!gameRunning && e.key === ' ') {
+                resetGame();
+                return;
+            }
+
+            if (!gameRunning) return;
+
+            // Cambiar dirección usando la función unificada
+            switch (e.key) {
+                case 'ArrowUp':
+                    changeDirection(0, -1);
+                    break;
+                case 'ArrowDown':
+                    changeDirection(0, 1);
+                    break;
+                case 'ArrowLeft':
+                    changeDirection(-1, 0);
+                    break;
+                case 'ArrowRight':
+                    changeDirection(1, 0);
+                    break;
+            }
+        });
+
+        // Controles táctiles
+        const btnUp = document.getElementById('btnUp');
+        const btnDown = document.getElementById('btnDown');
+        const btnLeft = document.getElementById('btnLeft');
+        const btnRight = document.getElementById('btnRight');
+
+        btnUp.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            changeDirection(0, -1);
+        });
+        btnUp.addEventListener('click', (e) => {
+            e.preventDefault();
+            changeDirection(0, -1);
+        });
+
+        btnDown.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            changeDirection(0, 1);
+        });
+        btnDown.addEventListener('click', (e) => {
+            e.preventDefault();
+            changeDirection(0, 1);
+        });
+
+        btnLeft.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            changeDirection(-1, 0);
+        });
+        btnLeft.addEventListener('click', (e) => {
+            e.preventDefault();
+            changeDirection(-1, 0);
+        });
+
+        btnRight.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            changeDirection(1, 0);
+        });
+        btnRight.addEventListener('click', (e) => {
+            e.preventDefault();
+            changeDirection(1, 0);
+        });
+
+        // Inicializar el juego
+        generateFood();
+        drawGame();
+        
+        // Inicializar audio (requiere interacción del usuario)
+        document.addEventListener('click', () => {
+            if (!audioContext) {
+                initAudio();
+                playBackgroundMusic();
+            }
+        }, { once: true });
+        
+        document.addEventListener('keydown', () => {
+            if (!audioContext) {
+                initAudio();
+                playBackgroundMusic();
+            }
+        }, { once: true });
+        
+        // Actualizar el juego
+        let gameInterval = setInterval(moveSnake, gameSpeed);
+    </script>
+</body>
+</html>
