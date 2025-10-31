@@ -118,6 +118,19 @@
             animation: gameOverGlow 1s ease-in-out infinite alternate;
         }
 
+        .mobile-text {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .desktop-text {
+                display: none;
+            }
+            .mobile-text {
+                display: inline;
+            }
+        }
+
         @keyframes gameOverGlow {
             0% { 
                 text-shadow: 
@@ -183,6 +196,35 @@
                 inset 0 0 15px rgba(0, 255, 255, 0.5);
         }
 
+        /* Botón de reinicio para móvil */
+        .restart-btn {
+            display: none;
+            margin-top: 20px;
+            padding: 15px 40px;
+            border: 2px solid #ff00ff;
+            background: rgba(255, 0, 255, 0.3);
+            border-radius: 25px;
+            color: #ff00ff;
+            font-size: 1.2em;
+            font-weight: bold;
+            cursor: pointer;
+            user-select: none;
+            touch-action: manipulation;
+            box-shadow: 
+                0 0 15px #ff00ff,
+                inset 0 0 15px rgba(255, 0, 255, 0.3);
+            transition: all 0.2s;
+            text-shadow: 0 0 10px #ff00ff;
+        }
+
+        .restart-btn:active {
+            transform: scale(0.95);
+            background: rgba(255, 0, 255, 0.5);
+            box-shadow: 
+                0 0 25px #ff00ff,
+                inset 0 0 20px rgba(255, 0, 255, 0.5);
+        }
+
         /* Mostrar controles solo en móvil */
         @media (max-width: 768px) {
             .controls {
@@ -193,6 +235,14 @@
                 width: 100%;
                 max-width: 400px;
                 height: auto;
+            }
+
+            .game-over {
+                margin-bottom: 10px;
+            }
+
+            .restart-btn {
+                display: inline-block;
             }
         }
     </style>
@@ -209,7 +259,8 @@
             </div>
         </div>
         <canvas id="gameCanvas" width="400" height="400"></canvas>
-        <div id="gameOver" class="game-over">¡Game Over! Presiona ESPACIO para reiniciar</div>
+        <div id="gameOver" class="game-over">¡Game Over! <span class="desktop-text">Presiona ESPACIO para reiniciar</span><span class="mobile-text">Toca el botón para reiniciar</span></div>
+        <button id="restartBtn" class="restart-btn">🔄 Reiniciar Juego</button>
         <div class="instructions">
             Usa las flechas del teclado o los botones para mover la serpiente
         </div>
@@ -233,6 +284,7 @@
         const scoreElement = document.getElementById('score');
         const levelElement = document.getElementById('level');
         const gameOverElement = document.getElementById('gameOver');
+        const restartBtn = document.getElementById('restartBtn');
 
         // Configuración del juego
         const gridSize = 20;
@@ -643,6 +695,10 @@
         function endGame() {
             gameRunning = false;
             gameOverElement.style.display = 'block';
+            // Mostrar botón de reinicio en móvil
+            if (window.innerWidth <= 768) {
+                restartBtn.style.display = 'inline-block';
+            }
             stopBackgroundMusic();
             playGameOverSound(); // Reproducir sonido al perder
         }
@@ -659,6 +715,7 @@
             levelElement.textContent = level;
             gameRunning = true;
             gameOverElement.style.display = 'none';
+            restartBtn.style.display = 'none'; // Ocultar botón de reinicio
             generateFood();
             drawGame();
             
@@ -743,6 +800,16 @@
         btnRight.addEventListener('click', (e) => {
             e.preventDefault();
             changeDirection(1, 0);
+        });
+
+        // Botón de reinicio
+        restartBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            resetGame();
+        });
+        restartBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            resetGame();
         });
 
         // Inicializar el juego
