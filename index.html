@@ -138,6 +138,63 @@
             color: #00ffff;
             text-shadow: 0 0 5px #00ffff;
         }
+
+        /* Controles táctiles */
+        .controls {
+            display: none;
+            margin-top: 20px;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .controls-row {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .control-btn {
+            width: 60px;
+            height: 60px;
+            border: 2px solid #00ffff;
+            background: rgba(0, 255, 255, 0.2);
+            border-radius: 15px;
+            color: #00ffff;
+            font-size: 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            user-select: none;
+            touch-action: manipulation;
+            box-shadow: 
+                0 0 10px #00ffff,
+                inset 0 0 10px rgba(0, 255, 255, 0.3);
+            transition: all 0.1s;
+            text-shadow: 0 0 5px #00ffff;
+        }
+
+        .control-btn:active {
+            transform: scale(0.95);
+            background: rgba(0, 255, 255, 0.4);
+            box-shadow: 
+                0 0 20px #00ffff,
+                inset 0 0 15px rgba(0, 255, 255, 0.5);
+        }
+
+        /* Mostrar controles solo en móvil */
+        @media (max-width: 768px) {
+            .controls {
+                display: flex;
+            }
+            
+            #gameCanvas {
+                width: 100%;
+                max-width: 400px;
+                height: auto;
+            }
+        }
     </style>
 </head>
 <body>
@@ -154,7 +211,18 @@
         <canvas id="gameCanvas" width="400" height="400"></canvas>
         <div id="gameOver" class="game-over">¡Game Over! Presiona ESPACIO para reiniciar</div>
         <div class="instructions">
-            Usa las flechas del teclado para mover la serpiente
+            Usa las flechas del teclado o los botones para mover la serpiente
+        </div>
+        <!-- Controles táctiles -->
+        <div class="controls">
+            <div class="controls-row">
+                <button class="control-btn" id="btnUp">↑</button>
+            </div>
+            <div class="controls-row">
+                <button class="control-btn" id="btnLeft">←</button>
+                <button class="control-btn" id="btnDown">↓</button>
+                <button class="control-btn" id="btnRight">→</button>
+            </div>
         </div>
     </div>
 
@@ -181,6 +249,135 @@
         let level = 1;
         let gameRunning = true;
         let gameSpeed = 150;
+
+        // Sistema de audio
+        let audioContext;
+        let backgroundMusicInterval;
+        let musicPlaying = false;
+
+        // Inicializar audio
+        function initAudio() {
+            try {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            } catch (e) {
+                console.log('Audio no disponible');
+            }
+        }
+
+        // Reproducir música de fondo (loop continuo)
+        function playBackgroundMusic() {
+            if (!audioContext || musicPlaying) return;
+            
+            musicPlaying = true;
+            let noteIndex = 0;
+            const melody = [
+                { freq: 262, time: 0.3 },   // Do
+                { freq: 294, time: 0.3 },   // Re
+                { freq: 330, time: 0.3 },   // Mi
+                { freq: 349, time: 0.3 },   // Fa
+                { freq: 392, time: 0.4 },   // Sol
+                { freq: 349, time: 0.3 },   // Fa
+                { freq: 330, time: 0.3 },   // Mi
+                { freq: 294, time: 0.4 }    // Re
+            ];
+            
+            function playNextNote() {
+                if (!musicPlaying || !gameRunning) return;
+                
+                try {
+                    const note = melody[noteIndex];
+                    const oscillator = audioContext.createOscillator();
+                    const gainNode = audioContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioContext.destination);
+                    
+                    oscillator.type = 'sine';
+                    oscillator.frequency.value = note.freq;
+                    
+                    gainNode.gain.setValueAtTime(0.05, audioContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + note.time * 0.9);
+                    
+                    oscillator.start(audioContext.currentTime);
+                    oscillator.stop(audioContext.currentTime + note.time);
+                    
+                    noteIndex = (noteIndex + 1) % melody.length;
+                    
+                    backgroundMusicInterval = setTimeout(playNextNote, note.time * 1000);
+                } catch (e) {
+                    console.log('Error al reproducir música');
+                }
+            }
+            
+            playNextNote();
+        }
+
+        // Detener música de fondo
+        function stopBackgroundMusic() {
+            musicPlaying = false;
+            if (backgroundMusicInterval) {
+                clearTimeout(backgroundMusicInterval);
+                backgroundMusicInterval = null;
+            }
+        }
+
+        // Sonido cuando come
+        function playEatSound() {
+            if (!audioContext) return;
+            
+            try {
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.setValueAtTime(330, audioContext.currentTime);
+                oscillator.frequency.setValueAtTime(440, audioContext.currentTime + 0.1);
+                oscillator.frequency.setValueAtTime(550, audioContext.currentTime + 0.2);
+                
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+                
+                oscillator.type = 'sine';
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.3);
+            } catch (e) {}
+        }
+
+        // Sonido cuando pierde
+        function playGameOverSound() {
+            if (!audioContext) return;
+            
+            try {
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.setValueAtTime(220, audioContext.currentTime);
+                oscillator.frequency.exponentialRampToValueAtTime(110, audioContext.currentTime + 0.5);
+                
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+                
+                oscillator.type = 'sawtooth';
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.5);
+            } catch (e) {}
+        }
+
+        // Función para cambiar dirección (usada por teclado y botones)
+        function changeDirection(newDx, newDy) {
+            if (!gameRunning) return;
+            
+            // Prevenir movimiento inverso
+            if ((newDx !== 0 && dx !== -newDx) || (newDy !== 0 && dy !== -newDy)) {
+                dx = newDx;
+                dy = newDy;
+            }
+        }
 
         // Generar comida aleatoria
         function generateFood() {
@@ -418,6 +615,7 @@
 
             // Verificar si come la comida
             if (head.x === food.x && head.y === food.y) {
+                playEatSound(); // Reproducir sonido al comer
                 score += 10 * level; // Más puntos según el nivel
                 scoreElement.textContent = score;
                 
@@ -445,6 +643,8 @@
         function endGame() {
             gameRunning = false;
             gameOverElement.style.display = 'block';
+            stopBackgroundMusic();
+            playGameOverSound(); // Reproducir sonido al perder
         }
 
         // Reiniciar el juego
@@ -465,6 +665,9 @@
             // Reiniciar intervalo
             clearInterval(gameInterval);
             gameInterval = setInterval(moveSnake, gameSpeed);
+            
+            // Iniciar música de fondo
+            playBackgroundMusic();
         }
 
         // Controles del teclado
@@ -483,38 +686,83 @@
 
             if (!gameRunning) return;
 
-            // Prevenir movimiento inverso
+            // Cambiar dirección usando la función unificada
             switch (e.key) {
                 case 'ArrowUp':
-                    if (dy !== 1) {
-                        dx = 0;
-                        dy = -1;
-                    }
+                    changeDirection(0, -1);
                     break;
                 case 'ArrowDown':
-                    if (dy !== -1) {
-                        dx = 0;
-                        dy = 1;
-                    }
+                    changeDirection(0, 1);
                     break;
                 case 'ArrowLeft':
-                    if (dx !== 1) {
-                        dx = -1;
-                        dy = 0;
-                    }
+                    changeDirection(-1, 0);
                     break;
                 case 'ArrowRight':
-                    if (dx !== -1) {
-                        dx = 1;
-                        dy = 0;
-                    }
+                    changeDirection(1, 0);
                     break;
             }
+        });
+
+        // Controles táctiles
+        const btnUp = document.getElementById('btnUp');
+        const btnDown = document.getElementById('btnDown');
+        const btnLeft = document.getElementById('btnLeft');
+        const btnRight = document.getElementById('btnRight');
+
+        btnUp.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            changeDirection(0, -1);
+        });
+        btnUp.addEventListener('click', (e) => {
+            e.preventDefault();
+            changeDirection(0, -1);
+        });
+
+        btnDown.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            changeDirection(0, 1);
+        });
+        btnDown.addEventListener('click', (e) => {
+            e.preventDefault();
+            changeDirection(0, 1);
+        });
+
+        btnLeft.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            changeDirection(-1, 0);
+        });
+        btnLeft.addEventListener('click', (e) => {
+            e.preventDefault();
+            changeDirection(-1, 0);
+        });
+
+        btnRight.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            changeDirection(1, 0);
+        });
+        btnRight.addEventListener('click', (e) => {
+            e.preventDefault();
+            changeDirection(1, 0);
         });
 
         // Inicializar el juego
         generateFood();
         drawGame();
+        
+        // Inicializar audio (requiere interacción del usuario)
+        document.addEventListener('click', () => {
+            if (!audioContext) {
+                initAudio();
+                playBackgroundMusic();
+            }
+        }, { once: true });
+        
+        document.addEventListener('keydown', () => {
+            if (!audioContext) {
+                initAudio();
+                playBackgroundMusic();
+            }
+        }, { once: true });
         
         // Actualizar el juego
         let gameInterval = setInterval(moveSnake, gameSpeed);
